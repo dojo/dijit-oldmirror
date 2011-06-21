@@ -1,4 +1,4 @@
-define("dijit/layout/ContentPane", ["dojo", "dijit", "dijit/_Widget", "dijit/layout/_LayoutWidget", "dijit/layout/_ContentPaneResizeMixin", "dojo/string", "dojo/html", "i18n!dijit/nls/loading"], function(dojo, dijit) {
+define("dijit/layout/ContentPane", ["dojo", "dijit", "dijit/_Widget", "dijit/layout/_ContentPaneResizeMixin", "dojo/string", "dojo/html", "i18n!dijit/nls/loading"], function(dojo, dijit) {
 
 dojo.declare(
 	"dijit.layout.ContentPane", [dijit._Widget, dijit.layout._ContentPaneResizeMixin],
@@ -181,21 +181,6 @@ dojo.declare(
 		}
 	},
 
-	startup: function(){
-		// summary:
-		//		See `dijit.layout._LayoutWidget.startup` for description.
-		//		Although ContentPane doesn't extend _LayoutWidget, it does implement
-		//		the same API.
-
-		if(this._started){ return; }
-
-		this.inherited(arguments);
-
-		if(this._isShown()){
-			this._onShow();
-		}
-	},
-
 	setHref: function(/*String|Uri*/ href){
 		// summary:
 		//		Deprecated.   Use set('href', ...) instead.
@@ -307,48 +292,6 @@ dojo.declare(
 		this.inherited(arguments);
 	},
 
-	resize: function(changeSize, resultSize){
-		// summary:
-		//		See `dijit.layout._LayoutWidget.resize` for description.
-		//		Although ContentPane doesn't extend _LayoutWidget, it does implement
-		//		the same API.
-
-		// For the TabContainer --> BorderContainer --> ContentPane case, _onShow() is
-		// never called, so resize() is our trigger to do the initial href download (see [20099]).
-		// However, don't load href for closed TitlePanes.
-		if(!this._wasShown && this.open !== false){
-			this._onShow();
-		}
-
-		this._resizeCalled = true;
-
-		this._scheduleLayout(changeSize, resultSize);
-	},
-
-	_isShown: function(){
-		// summary:
-		//		Returns true if the content is currently shown.
-		// description:
-		//		If I am a child of a layout widget then it actually returns true if I've ever been visible,
-		//		not whether I'm currently visible, since that's much faster than tracing up the DOM/widget
-		//		tree every call, and at least solves the performance problem on page load by deferring loading
-		//		hidden ContentPanes until they are first shown
-
-		if(this._childOfLayoutWidget){
-			// If we are TitlePane, etc - we return that only *IF* we've been resized
-			if(this._resizeCalled && "open" in this){
-				return this.open;
-			}
-			return this._resizeCalled;
-		}else if("open" in this){
-			return this.open;		// for TitlePane, etc.
-		}else{
-			var node = this.domNode, parent = this.domNode.parentNode;
-			return (node.style.display != 'none') && (node.style.visibility != 'hidden') && !dojo.hasClass(node, "dijitHidden") &&
-					parent && parent.style && (parent.style.display != 'none');
-		}
-	},
-
 	_onShow: function(){
 		// summary:
 		//		Called when the ContentPane is made visible
@@ -360,26 +303,15 @@ dojo.declare(
 		//		Does necessary processing, including href download and layout/resize of
 		//		child widget(s)
 
+		this.inherited(arguments);
+
 		if(this.href){
 			if(!this._xhrDfd && // if there's an href that isn't already being loaded
 				(!this.isLoaded || this._hrefChanged || this.refreshOnShow)
 			){
-				var d = this.refresh();
-			}
-		}else{
-			if(this._needLayout){
-				// If a layout has been scheduled for when we become visible, do it now
-				this._layout(this._changeSize, this._resultSize);
+				return this.refresh();	// If child has an href, promise that fires when the load is complete
 			}
 		}
-
-		this.inherited(arguments);
-
-		// Need to keep track of whether ContentPane has been shown (which is different than
-		// whether or not it's currently visible).
-		this._wasShown = true;
-		
-		return d;		// If child has an href, promise that fires when the load is complete
 	},
 
 	refresh: function(){
@@ -578,19 +510,6 @@ dojo.declare(
 			console.error(consoleText, err);
 		}else if(errText){// a empty string won't change current content
 			this._setContent(errText, true);
-		}
-	},
-
-	_scheduleLayout: function(changeSize, resultSize){
-		// summary:
-		//		Resize myself, and call resize() on each of my child layout widgets, either now
-		//		(if I'm currently visible) or when I become visible
-		if(this._isShown()){
-			this._layout(changeSize, resultSize);
-		}else{
-			this._needLayout = true;
-			this._changeSize = changeSize;
-			this._resultSize = resultSize;
 		}
 	},
 

@@ -59,7 +59,7 @@ dojo.declare("dijit._PaletteMixin",
 	//	 dyeClass should implements dijit.Dye interface
 	dyeClass: '',
 
-	_preparePalette: function(choices, titles) {
+	_preparePalette: function(choices, titles, dyeClassObj) {
 		// summary:
 		//		Subclass must call _preparePalette() from postCreate(), passing in the tooltip
 		//		for each cell
@@ -67,18 +67,20 @@ dojo.declare("dijit._PaletteMixin",
 		//		id's for each cell of the palette, used to create Dye JS object for each cell
 		// titles: String[]
 		//		Localized tooltip for each cell
+		// dyeClassObj: Constructor?
+		//		If specified, use this constructor rather than this.dyeClass
 
 		this._cells = [];
 		var url = this._blankGif;
 		
-		var dyeClassObj = dojo.getObject(this.dyeClass);
+		dyeClassObj = dyeClassObj || dojo.getObject(this.dyeClass);
 
 		for(var row=0; row < choices.length; row++){
 			var rowNode = dojo.create("tr", {tabIndex: "-1"}, this.gridNode);
 			for(var col=0; col < choices[row].length; col++){
 				var value = choices[row][col];
 				if(value){
-					var cellObject = new dyeClassObj(value);
+					var cellObject = new dyeClassObj(value, row, col);
 					
 					var cellNode = dojo.create("td", {
 						"class": this.cellClass,
@@ -224,13 +226,7 @@ dojo.declare("dijit._PaletteMixin",
 			for(var i = 0; i < this._cells.length; i++){
 				if(value == this._cells[i].dye.getValue()){
 					this._selectedCell = i;
-
 					dojo.addClass(this._cells[i].node, "dijitPaletteCellSelected");
-
-					if(priorityChange || priorityChange === undefined){
-						this.onChange(value);
-					}
-
 					break;
 				}
 			}
@@ -238,6 +234,10 @@ dojo.declare("dijit._PaletteMixin",
 		
 		// record new value, or null if no matching cell
 		this._set("value", this._selectedCell >= 0 ? value : null);
+
+		if(priorityChange || priorityChange === undefined){
+			this.onChange(value);
+		}
 	},
 
 	onChange: function(value){
@@ -287,7 +287,7 @@ dojo.declare("dijit.Dye",
 		// summary:
 		//		Interface for the JS Object associated with a palette cell (i.e. DOMNode)
 
-		constructor: function(alias){
+		constructor: function(alias, row, col){
 			// summary:
 			//		Initialize according to value or alias like "white"
 			// alias: String

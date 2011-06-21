@@ -114,7 +114,10 @@ dojo.declare(
 
 		// Flags to _HasDropDown to limit height of drop down to make it fit in viewport
 		maxHeight: -1,
-		
+
+		// For backwards compatibility let onClick events propagate, even clicks on the down arrow button
+		_stopClickEvents: false,
+
 		_getCaretPos: function(/*DomNode*/ element){
 			// khtml 3.5.2 has selection* methods as does webkit nightlies from 2005-06-22
 			var pos = 0;
@@ -474,15 +477,7 @@ dojo.declare(
 			// tags:
 			//		private
 			if(!displayedValue){
-				// Use labelFunc() to get displayedValue.  But it may return HTML so need to convert to plain text.
-				var label = this.labelFunc(item, this.store);
-				if(this.labelType == "html"){
-					var span = this._helperSpan;
-					span.innerHTML = label;
-					displayedValue = span.innerText || span.textContent;
-				}else{
-					displayedValue = label;
-				}
+				displayedValue = this.store.getValue(item, this.searchAttr);
 			}
 			var value = this._getValueField() != this.searchAttr? this.store.getIdentity(item) : displayedValue;
 			this._set("item", item);
@@ -506,8 +501,7 @@ dojo.declare(
 				this.item = undefined;
 				this.value = '';
 			}else{
-				newValue = node.innerText || node.textContent || "";
-				// newValue = this.store.getValue(node.item, this.searchAttr).toString();
+				newValue = this.store.getValue(node.item, this.searchAttr).toString();
 				this.set('item', node.item, false, newValue);
 			}
 			// get the text that the user manually entered (cut off autocompleted text)
@@ -635,13 +629,10 @@ dojo.declare(
 					var item = (this.item = this.store.fetchSelectedItem());
 					if(item){
 						var valueField = this._getValueField();
-						this.value = valueField != this.searchAttr? this.store.getValue(item, valueField) : this.labelFunc(item, this.store);
+						this.value = this.store.getValue(item, valueField);
 					}
 				}
 			}
-
-			// used to convert HTML to plain text
-			this._helperSpan = dojo.create("span");
 
 			this.inherited(arguments);
 		},
@@ -659,11 +650,6 @@ dojo.declare(
 				dijit.setWaiState(this.domNode, "labelledby", label[0].id);
 
 			}
-			this.inherited(arguments);
-		},
-
-		destroy: function(){
-			dojo.destroy(this._helperSpan);
 			this.inherited(arguments);
 		},
 
