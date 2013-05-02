@@ -493,11 +493,21 @@ var RichText = declare("dijit._editor.RichText", [_Widget, _CssStateMixin], {
 			this.onLoad(html);
 		});
 
-		// Set the iframe's initial (blank) content.
+		// Attach iframe to document, and set the initial (blank) content.
 		var src = this._getIframeDocTxt(),
 			s = "javascript: '" + src.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
-		ifr.setAttribute('src', s);
-		this.editingArea.appendChild(ifr);
+
+		if(has("ie") >= 9){
+			// On IE9+, attach to document before setting the content, to avoid problem w/iframe running in
+			// wrong security context, see #16633.
+			this.editingArea.appendChild(ifr);
+			ifr.src = s;
+		}else{
+			// For other browsers, set src first, especially for IE6/7 where attaching first gives a warning on
+			// https:// about "this page contains secure and insecure items, do you want to view both?"
+			ifr.setAttribute('src', s);
+			this.editingArea.appendChild(ifr);
+		}
 
 		if(has("safari") <= 4){
 			src = ifr.getAttribute("src");
@@ -585,12 +595,24 @@ var RichText = declare("dijit._editor.RichText", [_Widget, _CssStateMixin], {
 		});
 
 
-		// need to find any associated label element and update iframe document title
-		var label=query('label[for="'+this.id+'"]');
-
+		// need to find any associated label element, aria-label, or aria-labelledby and update iframe document title
+		var label = query('label[for="'+this.id+'"]');
+		var title = "";
+		if(label.length){
+			title = label[0].innerHTML;
+		}else if(this["aria-label"]){
+			title = this["aria-label"];
+		}else if(this["aria-labelledby"]){
+			title = dom.byId(this["aria-labelledby"]).innerHTML;
+		}
+			
+		// Now that we have the title, also set it as the title attribute on the iframe
+		this.iframe.setAttribute("title", title);
+		
 		return [
-			this.isLeftToRight() ? "<html>\n<head>\n" : "<html dir='rtl'>\n<head>\n",
-			(has("mozilla") && label.length ? "<title>" + label[0].innerHTML + "</title>\n" : ""),
+			this.isLeftToRight() ? "<html lang='"+this.lang+"'>\n<head>\n" : "<html dir='rtl' lang='"+this.lang+"'>\n<head>\n",
+			//(has("mozilla") && label.length ? "<title>" + label[0].innerHTML + "</title>\n" : ""),
+			title ? "<title>" + title + "</title>" : "",
 			"<meta http-equiv='Content-Type' content='text/html'>\n",
 			"<style>\n",
 			"\tbody,html {\n",
@@ -629,7 +651,7 @@ var RichText = declare("dijit._editor.RichText", [_Widget, _CssStateMixin], {
 			(!has("ie") ? "\tli{ min-height:1.2em; }\n" : ""),
 			"</style>\n",
 			this._applyEditingAreaStyleSheets(),"\n",
-			"</head>\n<body ",
+			"</head>\n<body role='main' ",
 			(setBodyId?"id='dijitEditorBody' ":""),
 
 			// Onload handler fills in real editor content.
@@ -1256,7 +1278,10 @@ var RichText = declare("dijit._editor.RichText", [_Widget, _CssStateMixin], {
 		//focus() is required for IE to work
 		//In addition, focus() makes sure after the execution of
 		//the command, the editor receives the focus as expected
-		this.focus();
+		if(this.focused){
+			// put focus back in the iframe, unless focus has somehow been shifted out of the editor completely
+			this.focus();
+		}
 
 		command = this._normalizeCommand(command, argument);
 		

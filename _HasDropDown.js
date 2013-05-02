@@ -41,7 +41,8 @@ define([
 		_arrowWrapperNode: null,
 
 		// _popupStateNode: [protected] DomNode
-		//		The node to set the popupActive class on.
+		//		The node to set the aria-expanded class on.
+		//		Also sets popupActive class but that will be removed in 2.0.
 		//		Can be set via a data-dojo-attach-point assignment.
 		//		If missing, then focusNode or _buttonNode (if focusNode is missing) will be used.
 		_popupStateNode: null,
@@ -172,7 +173,9 @@ define([
 			}else{
 				// The drop down arrow icon probably can't receive focus, but widget itself should get focus.
 				// defer() needed to make it work on IE (test DateTextBox)
-				this.defer("focus");
+				if(this.focus){
+					this.defer("focus");
+				}
 			}
 
 			if(has("touch")){
@@ -480,7 +483,14 @@ define([
 			domAttr.set(this._popupStateNode, "popupActive", "true");
 			domClass.add(this._popupStateNode, "dijitHasDropDownOpen");
 			this._set("_opened", true);	// use set() because _CssStateMixin is watching
-			this.domNode.setAttribute("aria-expanded", "true");
+			
+			this._popupStateNode.setAttribute("aria-expanded", "true");
+			this._popupStateNode.setAttribute("aria-owns", dropDown.id);
+
+			// Set aria-labelledby on dropdown if it's not already set to something more meaningful
+			if(ddNode.getAttribute("role") !== "presentation" && !ddNode.getAttribute("aria-labelledby")){
+				ddNode.setAttribute("aria-labelledby", this.id);
+			}
 			
 			return retVal;
 		},
@@ -497,8 +507,9 @@ define([
 				this._focusDropDownTimer.remove();
 				delete this._focusDropDownTimer;
 			}
+			
 			if(this._opened){
-				this.domNode.setAttribute("aria-expanded", "false");
+				this._popupStateNode.setAttribute("aria-expanded", "false");
 				if(focus){ this.focus(); }
 				popup.close(this.dropDown);
 				this._opened = false;
